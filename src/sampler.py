@@ -79,15 +79,30 @@ class Sampler:
         return self.tokenizer.decode(generated)
 
 if __name__ == "__main__":
-    # Mocking a model that triggers a capability
+    import os
+    import sys
+
     tokenizer = CharTokenizer()
     model = TinyReasonerModel(tokenizer.vocab_size)
+
+    model_path = "models/sft_model.pt"
+    if len(sys.argv) > 1:
+        model_path = sys.argv[1]
+
+    if os.path.exists(model_path):
+        model.load_state_dict(torch.load(model_path, map_location="cpu"))
+        print(f"Loaded model from {model_path}")
+    else:
+        print(f"Model {model_path} not found, using random weights.")
+
     sampler = Sampler(model, tokenizer)
 
-    # We can't easily test the model generating specific things without training
-    # but we can test the loop logic by mocking the model's forward pass or
-    # just manually testing the capability dispatch.
+    prompts = [
+        "[BOS]What is the definition of apple?",
+        "[BOS]What is the sum of 10 and 20?"
+    ]
 
-    print("Sampler initialized. Manual testing of capability injection logic is complex with a random model.")
-    print("Testing a simple prompt (will likely be gibberish with untrained model):")
-    print(sampler.sample("Once upon a time", max_len=20))
+    for p in prompts:
+        print(f"\nPrompt: {p}")
+        output = sampler.sample(p, max_len=256)
+        print(f"Output: {output}")
