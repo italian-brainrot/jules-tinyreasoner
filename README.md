@@ -24,10 +24,18 @@ A reasoning model under 1 million parameters capable of tool calling.
 - Saved checkpoint: `models/sft_model.pt`.
 - Verified that the model starts to use `[DEFINE]` and `[SYMPY]` tokens correctly.
 
+### Session 3: Reinforcement Learning (GRPO)
+- Implemented GRPO training in `src/grpo_train.py`.
+- Created multi-faceted reward functions in `src/rewards.py`.
+- Expanded prompt generation in `src/prompts.py`.
+- Updated `src/sampler.py` to support multi-rollout log-prob and mask tracking.
+- Verified RL training loop and checkpointing.
+- Saved initial RL checkpoint: `models/rl_model.pt`.
+
 ## Next Steps
-- Stage 3: Reinforcement Learning (GRPO).
-- Improve the synthetic dataset variety.
-- Implement reward functions for RL.
+- Continue RL training for more iterations to improve accuracy.
+- Experiment with more complex math and reasoning tasks.
+- Fine-tune reward weights.
 
 ## Usage
 To test the model:

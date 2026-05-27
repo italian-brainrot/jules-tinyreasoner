@@ -12,71 +12,156 @@ class Sampler:
         self.model.to(device)
         self.model.eval()
 
-    def sample(self, prompt, max_len=512, temperature=1.0):
+    def sample(self, prompt, max_len=512, temperature=1.0, top_k=0, stop_at_eos=True):
         tokens = self.tokenizer.encode(prompt)
         input_ids = torch.tensor([tokens]).long().to(self.device)
 
         generated = tokens
         hidden = None
 
-        # We might want to pre-fill the hidden state with the prompt
+        # Pre-fill hidden state
         logits, hidden = self.model(input_ids, hidden)
 
         while len(generated) < max_len:
-            last_logit = logits[:, -1, :] / temperature
-            probs = F.softmax(last_logit, dim=-1)
-            next_token = torch.argmax(probs, dim=-1).item()
+            last_logit = logits[:, -1, :] / (temperature if temperature > 0 else 1.0)
+
+            if temperature == 0:
+                next_token = torch.argmax(last_logit, dim=-1).item()
+            else:
+                probs = F.softmax(last_logit, dim=-1)
+                next_token = torch.multinomial(probs, num_samples=1).item()
 
             generated.append(next_token)
 
-            # Check for capability tokens
             token_str = self.tokenizer.itos.get(next_token, "")
 
             if token_str in ["[DEFINE]", "[SYMPY]"]:
-                cap_type = token_str[1:-1] # "DEFINE" or "SYMPY"
+                cap_type = token_str[1:-1]
                 payload_tokens = []
-
-                # Model needs to generate the payload and the STOP token
                 found_stop = False
+
                 while len(generated) < max_len:
-                    # Feed the last generated token to get the next one
                     input_ids = torch.tensor([[generated[-1]]]).long().to(self.device)
                     logits, hidden = self.model(input_ids, hidden)
 
-                    next_token = torch.argmax(logits[0, -1, :], dim=-1).item()
-                    generated.append(next_token)
+                    # Inside capability call, we usually want greedy or same temp
+                    last_logit = logits[:, -1, :] / (temperature if temperature > 0 else 1.0)
+                    if temperature == 0:
+                        nt = torch.argmax(last_logit, dim=-1).item()
+                    else:
+                        nt = torch.multinomial(F.softmax(last_logit, dim=-1), num_samples=1).item()
 
-                    if next_token == self.tokenizer.stop_token_id:
+                    generated.append(nt)
+                    if nt == self.tokenizer.stop_token_id:
                         found_stop = True
                         break
-                    payload_tokens.append(next_token)
+                    payload_tokens.append(nt)
 
                 if found_stop:
                     payload = self.tokenizer.decode(payload_tokens)
                     result = dispatch_capability(cap_type, payload)
-
-                    # Inject result + STOP
                     result_tokens = self.tokenizer.encode(result)
                     result_tokens.append(self.tokenizer.stop_token_id)
 
-                    # For each injected token, we need to update the hidden state
-                    # so the model knows what was injected
                     for r_token in result_tokens:
                         generated.append(r_token)
                         input_ids = torch.tensor([[generated[-1]]]).long().to(self.device)
                         logits, hidden = self.model(input_ids, hidden)
                 else:
-                    # Max len reached without stop
                     break
-
             elif next_token == self.tokenizer.eos_token_id:
-                break
+                if stop_at_eos:
+                    break
+                else:
+                    input_ids = torch.tensor([[generated[-1]]]).long().to(self.device)
+                    logits, hidden = self.model(input_ids, hidden)
             else:
-                # Regular token, just update hidden state for next step
                 input_ids = torch.tensor([[generated[-1]]]).long().to(self.device)
                 logits, hidden = self.model(input_ids, hidden)
 
         return self.tokenizer.decode(generated)
+
+    def grpo_rollout(self, prompt, num_rollouts=8, max_len=512, temperature=1.0):
+        """Perform multiple rollouts for GRPO.
+        Returns completions, log_probs, and mask for model-generated tokens.
+        """
+        prompt_tokens = self.tokenizer.encode(prompt)
+        all_completions = []
+        all_log_probs = []
+        all_masks = [] # 1 for model generated, 0 for prompt or tool injected
+
+        for _ in range(num_rollouts):
+            generated_tokens = list(prompt_tokens)
+            log_probs = [] # Only for tokens where mask == 1
+            mask = [0] * (len(prompt_tokens) - 1) # Mask for prompt tokens (except BOS)
+
+            hidden = None
+            input_ids = torch.tensor([prompt_tokens]).long().to(self.device)
+            logits, hidden = self.model(input_ids, hidden)
+
+            curr_len = len(generated_tokens)
+            while curr_len < max_len:
+                last_logit = logits[:, -1, :] / (temperature if temperature > 0 else 1.0)
+                probs = F.softmax(last_logit, dim=-1)
+
+                next_token = torch.multinomial(probs, num_samples=1).item()
+                lp = torch.log(probs[0, next_token] + 1e-10)
+
+                generated_tokens.append(next_token)
+                log_probs.append(lp)
+                mask.append(1) # Model generated
+
+                token_str = self.tokenizer.itos.get(next_token, "")
+                if token_str in ["[DEFINE]", "[SYMPY]"]:
+                    cap_type = token_str[1:-1]
+                    payload_tokens = []
+                    found_stop = False
+
+                    while len(generated_tokens) < max_len:
+                        input_ids = torch.tensor([[generated_tokens[-1]]]).long().to(self.device)
+                        logits, hidden = self.model(input_ids, hidden)
+
+                        last_logit = logits[:, -1, :] / (temperature if temperature > 0 else 1.0)
+                        probs = F.softmax(last_logit, dim=-1)
+                        nt = torch.multinomial(probs, num_samples=1).item()
+                        lp = torch.log(probs[0, nt] + 1e-10)
+
+                        generated_tokens.append(nt)
+                        log_probs.append(lp)
+                        mask.append(1) # Model generated
+
+                        if nt == self.tokenizer.stop_token_id:
+                            found_stop = True
+                            break
+                        payload_tokens.append(nt)
+
+                    if found_stop:
+                        payload = self.tokenizer.decode(payload_tokens)
+                        result = dispatch_capability(cap_type, payload)
+                        result_tokens = self.tokenizer.encode(result)
+                        result_tokens.append(self.tokenizer.stop_token_id)
+
+                        for r_token in result_tokens:
+                            generated_tokens.append(r_token)
+                            mask.append(0) # Tool injected
+
+                            input_ids = torch.tensor([[generated_tokens[-1]]]).long().to(self.device)
+                            logits, hidden = self.model(input_ids, hidden)
+                    else:
+                        break
+                elif next_token == self.tokenizer.eos_token_id:
+                    break
+                else:
+                    input_ids = torch.tensor([[generated_tokens[-1]]]).long().to(self.device)
+                    logits, hidden = self.model(input_ids, hidden)
+
+                curr_len = len(generated_tokens)
+
+            all_completions.append(self.tokenizer.decode(generated_tokens))
+            all_log_probs.append(torch.stack(log_probs))
+            all_masks.append(torch.tensor(mask).to(self.device))
+
+        return all_completions, all_log_probs, all_masks
 
 if __name__ == "__main__":
     import os
@@ -104,5 +189,5 @@ if __name__ == "__main__":
 
     for p in prompts:
         print(f"\nPrompt: {p}")
-        output = sampler.sample(p, max_len=256)
+        output = sampler.sample(p, max_len=256, temperature=0)
         print(f"Output: {output}")
