@@ -127,6 +127,8 @@ class Sampler:
                         lp = torch.log(probs[0, nt] + 1e-10)
 
                         generated_tokens.append(nt)
+                        # SPECIAL TOKENS handled by tokenizer might be multi-char but they are single tokens here.
+                        # Wait, the tokenizer.encode handles [DEFINE] as one token.
                         log_probs.append(lp)
                         mask.append(1) # Model generated
 

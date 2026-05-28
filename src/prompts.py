@@ -31,8 +31,50 @@ def generate_dict_prompt():
 
     return prompt, definition, "dict"
 
-def get_random_prompt():
-    if random.random() < 0.5:
-        return generate_math_prompt()
+def generate_complex_math_prompt():
+    a = random.randint(1, 100)
+    b = random.randint(1, 100)
+    c = random.randint(1, 100)
+
+    # (a + b) * c or (a - b) + c etc
+    op1, symbol1 = random.choice([("+", "plus"), ("-", "minus")])
+    op2, symbol2 = random.choice([("*", "times"), ("+", "plus")])
+
+    prompt = f"What is ({a} {symbol1} {b}) {symbol2} {c}?"
+    expression = f"({a} {op1} {b}) {op2} {c}"
+    result = str(evaluate_math(expression))
+
+    return prompt, result, "math"
+
+def generate_comparison_prompt():
+    import nltk
+    try:
+        word_list = nltk.corpus.words.words()
+    except LookupError:
+        nltk.download('words')
+        word_list = nltk.corpus.words.words()
+
+    word1 = random.choice(word_list).lower()
+    word2 = random.choice(word_list).lower()
+
+    if len(word1) > len(word2):
+        result = word1
+    elif len(word2) > len(word1):
+        result = word2
     else:
+        result = "both"
+
+    prompt = f"Which word is longer: '{word1}' or '{word2}'? If they are equal, say 'both'."
+
+    return prompt, result, "dict"
+
+def get_random_prompt():
+    r = random.random()
+    if r < 0.3:
+        return generate_math_prompt()
+    elif r < 0.6:
         return generate_dict_prompt()
+    elif r < 0.8:
+        return generate_complex_math_prompt()
+    else:
+        return generate_comparison_prompt()
