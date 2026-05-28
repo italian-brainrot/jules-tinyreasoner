@@ -40,8 +40,12 @@ def compute_grpo_loss(model, ref_model, tokens, old_log_probs, mask, advantages,
         current_lp = current_lp_all[m == 1]
 
         if len(current_lp) != len(old_lp):
-            print(f"Mismatch: current_lp {len(current_lp)}, old_lp {len(old_lp)}")
-            continue
+            # print(f"Mismatch: current_lp {len(current_lp)}, old_lp {len(old_lp)}")
+            if len(current_lp) > len(old_lp):
+                current_lp = current_lp[:len(old_lp)]
+            else:
+                # Should not happen if sampler and mask are correct
+                continue
 
         ratio = torch.exp(current_lp - old_lp)
         surr1 = ratio * adv
@@ -67,11 +71,14 @@ def train_grpo():
     tokenizer = CharTokenizer()
     model = TinyReasonerModel(tokenizer.vocab_size).to(device)
 
-    if os.path.exists("models/sft_model.pt"):
+    if os.path.exists("models/rl_model.pt"):
+        model.load_state_dict(torch.load("models/rl_model.pt", map_location=device))
+        print("Loaded existing RL model.")
+    elif os.path.exists("models/sft_model.pt"):
         model.load_state_dict(torch.load("models/sft_model.pt", map_location=device))
         print("Loaded SFT model.")
     else:
-        print("Warning: models/sft_model.pt not found. Starting from scratch or pretrained.")
+        print("Warning: No model found. Starting from scratch or pretrained.")
         if os.path.exists("models/pretrained.pt"):
             model.load_state_dict(torch.load("models/pretrained.pt", map_location=device))
             print("Loaded pretrained model.")
@@ -91,7 +98,7 @@ def train_grpo():
 
     sampler = Sampler(model, tokenizer, device=device)
 
-    num_iterations = 100
+    num_iterations = 500
     group_size = 8
 
     for i in range(num_iterations):

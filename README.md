@@ -32,10 +32,18 @@ A reasoning model under 1 million parameters capable of tool calling.
 - Verified RL training loop and checkpointing.
 - Saved initial RL checkpoint: `models/rl_model.pt`.
 
+### Session 4: Extended RL and Task Complexity
+- Enhanced `src/prompts.py` with multi-step math problems and word length comparisons.
+- Refined `src/rewards.py` with length penalties and rewards for utilizing tool results.
+- Improved `src/grpo_train.py` for continuous training and increased iterations to 500.
+- Successfully completed 500 iterations of GRPO training.
+- Verified that the model maintains reasoning traces and tool use even with increased task complexity.
+- Synced all artifacts to Hugging Face bucket.
+
 ## Next Steps
-- Continue RL training for more iterations to improve accuracy.
-- Experiment with more complex math and reasoning tasks.
-- Fine-tune reward weights.
+- Evaluate model on a broader set of "hidden" tasks not seen during training.
+- Increase model capacity slightly (if still under 1M parameters) to improve reasoning consistency.
+- Implement more capabilities (e.g., a simple memory or web search mock).
 
 ## Usage
 To test the model:
