@@ -98,12 +98,12 @@ def train_grpo():
 
     sampler = Sampler(model, tokenizer, device=device)
 
-    num_iterations = 500
+    num_iterations = 1000
     group_size = 8
 
     for i in range(num_iterations):
-        prompt, ref_answer, task_type = get_random_prompt()
-        prompt = f"[BOS]{prompt}"
+        prompt_text, ref_answer, task_type = get_random_prompt()
+        prompt = f"[BOS]{prompt_text}"
 
         # 1. Rollout
         with torch.no_grad():
@@ -112,7 +112,7 @@ def train_grpo():
         # 2. Rewards
         rewards = []
         for completion in completions:
-            r = get_total_reward(completion, ref_answer, task_type)
+            r = get_total_reward(prompt_text, completion, ref_answer, task_type)
             rewards.append(r)
 
         rewards = torch.tensor(rewards).to(device)

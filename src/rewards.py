@@ -72,7 +72,35 @@ def reward_use_tool_result(completion):
         return 0.2
     return 0.0
 
-def get_total_reward(completion, reference_answer, task_type):
+def reward_grounding(prompt, completion):
+    """Reward for using entities from the prompt in capability calls."""
+    # Find capability calls
+    pattern = r"\[(DEFINE|SYMPY)\](.*?)\[CAPABILITY_STOP\]"
+    calls = re.findall(pattern, completion)
+    if not calls:
+        return 0.0
+
+    reward = 0.0
+    for cap_type, payload in calls:
+        if cap_type == "SYMPY":
+            # Extract numbers from prompt
+            prompt_nums = re.findall(r"\d+", prompt)
+            for num in prompt_nums:
+                if num in payload:
+                    reward += 0.05
+        elif cap_type == "DEFINE":
+            # This is harder as we don't always know the exact word if the prompt is complex,
+            # but usually it's "definition of <word>" or similar.
+            # Let's look for words in prompt that appear in payload.
+            prompt_words = re.findall(r"\w+", prompt)
+            # Skip very short words
+            prompt_words = [w.lower() for w in prompt_words if len(w) > 3]
+            for w in prompt_words:
+                if w in payload.lower():
+                    reward += 0.05
+    return min(reward, 0.2) # Cap grounding reward
+
+def get_total_reward(prompt, completion, reference_answer, task_type):
     reward = 0.0
     reward += reward_reasoning_tag(completion)
     reward += reward_answer_tag(completion)
@@ -80,4 +108,5 @@ def get_total_reward(completion, reference_answer, task_type):
     reward += reward_correctness(completion, reference_answer, task_type)
     reward += reward_length_penalty(completion)
     reward += reward_use_tool_result(completion)
+    reward += reward_grounding(prompt, completion)
     return reward
