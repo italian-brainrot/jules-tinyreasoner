@@ -61,16 +61,20 @@ def reward_use_tool_result(completion):
     if not matches:
         return 0.0
 
-    # Take the first result
-    result = matches[0].strip()
-    if not result:
+    reward = 0.0
+    # Use the content after the last injected tool result for checking
+    parts = completion.split("[CAPABILITY_STOP]")
+    if len(parts) < 3:
         return 0.0
 
-    # Check if this result appears after the second [CAPABILITY_STOP]
-    after_tool = completion.split("[CAPABILITY_STOP]")[-1]
-    if result.lower() in after_tool.lower():
-        return 0.2
-    return 0.0
+    after_all_tools = parts[-1].lower()
+
+    for i in range(1, len(parts)-1, 2):
+        result = parts[i].strip()
+        if result and result != "No definition found." and result.lower() in after_all_tools:
+            reward += 0.3
+
+    return min(reward, 0.6)
 
 def reward_grounding(prompt, completion):
     """Reward for using entities from the prompt in capability calls."""
@@ -81,24 +85,29 @@ def reward_grounding(prompt, completion):
         return 0.0
 
     reward = 0.0
+    found_grounding = False
     for cap_type, payload in calls:
         if cap_type == "SYMPY":
             # Extract numbers from prompt
             prompt_nums = re.findall(r"\d+", prompt)
             for num in prompt_nums:
                 if num in payload:
-                    reward += 0.05
+                    reward += 0.25
+                    found_grounding = True
         elif cap_type == "DEFINE":
-            # This is harder as we don't always know the exact word if the prompt is complex,
-            # but usually it's "definition of <word>" or similar.
-            # Let's look for words in prompt that appear in payload.
             prompt_words = re.findall(r"\w+", prompt)
             # Skip very short words
             prompt_words = [w.lower() for w in prompt_words if len(w) > 3]
             for w in prompt_words:
                 if w in payload.lower():
-                    reward += 0.05
-    return min(reward, 0.2) # Cap grounding reward
+                    reward += 0.25
+                    found_grounding = True
+
+    # Penalty for hallucinations (calling capabilities on things not in prompt)
+    if not found_grounding:
+        reward -= 0.5
+
+    return min(max(reward, -0.5), 1.0)
 
 def get_total_reward(prompt, completion, reference_answer, task_type):
     reward = 0.0

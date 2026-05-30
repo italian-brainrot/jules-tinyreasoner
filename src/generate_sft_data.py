@@ -4,9 +4,27 @@ import os
 from src.capabilities import lookup_dictionary, evaluate_math
 
 def generate_dictionary_task():
-    words = ["apple", "banana", "cat", "dog", "elephant", "flower", "guitar", "house", "island", "jacket"]
-    word = random.choice(words)
-    definition = lookup_dictionary(word)
+    import nltk
+    try:
+        word_list = nltk.corpus.words.words()
+    except LookupError:
+        nltk.download('words')
+        word_list = nltk.corpus.words.words()
+
+    # Filter for reasonably sized words that actually have definitions
+    word = None
+    definition = "No definition found."
+    for _ in range(10):
+        w = random.choice(word_list).lower()
+        d = lookup_dictionary(w)
+        if d != f"No definition found for {w}.":
+            word = w
+            definition = d
+            break
+
+    if word is None:
+        word = "apple"
+        definition = lookup_dictionary(word)
 
     prompt = f"What is the definition of {word}?"
     reasoning = f"Reasoning: I need to find the definition of {word}. [DEFINE]{word}[CAPABILITY_STOP]{definition}[CAPABILITY_STOP] The word {word} means {definition}."
@@ -18,8 +36,8 @@ def generate_dictionary_task():
     }
 
 def generate_math_task():
-    a = random.randint(1, 100)
-    b = random.randint(1, 100)
+    a = random.randint(1, 500)
+    b = random.randint(1, 500)
     ops = [("+", "sum of"), ("-", "difference between"), ("*", "product of")]
     op, phrase = random.choice(ops)
 

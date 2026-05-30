@@ -40,10 +40,22 @@ A reasoning model under 1 million parameters capable of tool calling.
 - Verified that the model maintains reasoning traces and tool use even with increased task complexity.
 - Synced all artifacts to Hugging Face bucket.
 
+### Session 5: Addressing Mode Collapse and Real Data Integration
+- Identified "mode collapse" where the model defaulted to `[DEFINE]elephant` for most prompts.
+- Updated `src/generate_sft_data.py` to use a much larger vocabulary from NLTK.
+- Created `src/generate_real_sft_data.py` to incorporate real tool-calling traces (from Hermes dataset) with injected capability calls.
+- Retrained SFT model on combined synthetic and real data (3000 examples) for 10 epochs.
+- Strengthened RL rewards in `src/rewards.py`:
+    - Increased grounding reward to 0.25 per entity.
+    - Added a -0.5 penalty for tool calls that don't match prompt entities (hallucinations).
+    - Increased reward for utilizing tool results to 0.3.
+- Continued GRPO training with the new reward structure.
+
 ## Next Steps
-- Evaluate model on a broader set of "hidden" tasks not seen during training.
-- Increase model capacity slightly (if still under 1M parameters) to improve reasoning consistency.
-- Implement more capabilities (e.g., a simple memory or web search mock).
+- Continue RL training to further break the habit of hallucinating fixed tool calls.
+- Monitor grounding rewards to ensure the model starts picking up words/numbers from the prompt.
+- Experiment with adding noise to the hidden state during RL to encourage exploration.
+- If performance stagnates, consider a larger model within the 1M parameter limit.
 
 ## Usage
 To test the model:
