@@ -77,7 +77,7 @@ def reward_use_tool_result(completion):
     return min(reward, 0.6)
 
 def reward_grounding(prompt, completion):
-    """Reward for using entities from the prompt in capability calls."""
+    """Reward for using entities from the prompt in capability calls, and penalize hallucinations."""
     # Find capability calls
     pattern = r"\[(DEFINE|SYMPY)\](.*?)\[CAPABILITY_STOP\]"
     calls = re.findall(pattern, completion)
@@ -85,15 +85,16 @@ def reward_grounding(prompt, completion):
         return 0.0
 
     reward = 0.0
-    found_grounding = False
     for cap_type, payload in calls:
+        call_grounded = False
         if cap_type == "SYMPY":
             # Extract numbers from prompt
             prompt_nums = re.findall(r"\d+", prompt)
             for num in prompt_nums:
                 if num in payload:
                     reward += 0.25
-                    found_grounding = True
+                    call_grounded = True
+                    break
         elif cap_type == "DEFINE":
             prompt_words = re.findall(r"\w+", prompt)
             # Skip very short words
@@ -101,13 +102,34 @@ def reward_grounding(prompt, completion):
             for w in prompt_words:
                 if w in payload.lower():
                     reward += 0.25
-                    found_grounding = True
+                    call_grounded = True
+                    break
 
-    # Penalty for hallucinations (calling capabilities on things not in prompt)
-    if not found_grounding:
-        reward -= 0.5
+        if not call_grounded:
+            reward -= 1.0 # Strong penalty for each hallucinated call
 
-    return min(max(reward, -0.5), 1.0)
+    return min(max(reward, -2.0), 1.0)
+
+def reward_correct_capability_type(completion, task_type):
+    """Reward for calling the right tool type for the task."""
+    pattern = r"\[(DEFINE|SYMPY)\]"
+    matches = re.findall(pattern, completion)
+    if not matches:
+        return 0.0
+
+    reward = 0.0
+    for cap_type in matches:
+        if task_type == "math":
+            if cap_type == "SYMPY":
+                reward += 0.1
+            else:
+                reward -= 0.2
+        elif task_type == "dict":
+            if cap_type == "DEFINE":
+                reward += 0.1
+            else:
+                reward -= 0.2
+    return reward
 
 def get_total_reward(prompt, completion, reference_answer, task_type):
     reward = 0.0
@@ -118,4 +140,5 @@ def get_total_reward(prompt, completion, reference_answer, task_type):
     reward += reward_length_penalty(completion)
     reward += reward_use_tool_result(completion)
     reward += reward_grounding(prompt, completion)
+    reward += reward_correct_capability_type(completion, task_type)
     return reward

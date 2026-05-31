@@ -81,7 +81,7 @@ class Sampler:
 
         return self.tokenizer.decode(generated)
 
-    def grpo_rollout(self, prompt, num_rollouts=8, max_len=512, temperature=1.0):
+    def grpo_rollout(self, prompt, num_rollouts=8, max_len=512, temperature=1.0, noise_std=0.0):
         """Perform multiple rollouts for GRPO.
         Returns completions, log_probs, and mask for model-generated tokens.
         """
@@ -101,6 +101,12 @@ class Sampler:
 
             curr_len = len(generated_tokens)
             while curr_len < max_len:
+                if noise_std > 0:
+                    h, c = hidden
+                    h = h + torch.randn_like(h) * noise_std
+                    c = c + torch.randn_like(c) * noise_std
+                    hidden = (h, c)
+
                 last_logit = logits[:, -1, :] / (temperature if temperature > 0 else 1.0)
                 probs = F.softmax(last_logit, dim=-1)
 
@@ -120,6 +126,12 @@ class Sampler:
                     while len(generated_tokens) < max_len:
                         input_ids = torch.tensor([[generated_tokens[-1]]]).long().to(self.device)
                         logits, hidden = self.model(input_ids, hidden)
+
+                        if noise_std > 0:
+                            h, c = hidden
+                            h = h + torch.randn_like(h) * noise_std
+                            c = c + torch.randn_like(c) * noise_std
+                            hidden = (h, c)
 
                         last_logit = logits[:, -1, :] / (temperature if temperature > 0 else 1.0)
                         probs = F.softmax(last_logit, dim=-1)
