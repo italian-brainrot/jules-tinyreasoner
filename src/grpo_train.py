@@ -98,16 +98,18 @@ def train_grpo():
 
     sampler = Sampler(model, tokenizer, device=device)
 
-    num_iterations = 1000
+    num_iterations = 500
     group_size = 8
 
     for i in range(num_iterations):
         prompt_text, ref_answer, task_type = get_random_prompt()
         prompt = f"[BOS]{prompt_text}"
 
-        # 1. Rollout
+        # 1. Rollout with exploration noise
         with torch.no_grad():
-            completions, log_probs, masks = sampler.grpo_rollout(prompt, num_rollouts=group_size, temperature=1.0)
+            completions, log_probs, masks = sampler.grpo_rollout(
+                prompt, num_rollouts=group_size, temperature=1.0, noise_std=0.05
+            )
 
         # 2. Rewards
         rewards = []
