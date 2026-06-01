@@ -10,7 +10,7 @@ from src.sampler import Sampler
 from src.rewards import get_total_reward
 from src.prompts import get_random_prompt
 
-def compute_grpo_loss(model, ref_model, tokens, old_log_probs, mask, advantages, clip_eps=0.2, beta=0.01):
+def compute_grpo_loss(model, ref_model, tokens, old_log_probs, mask, advantages, clip_eps=0.2, beta=0.0001):
     # tokens: (batch, seq_len)
     # old_log_probs: list of tensors (different lengths)
     # mask: list of tensors
@@ -20,7 +20,7 @@ def compute_grpo_loss(model, ref_model, tokens, old_log_probs, mask, advantages,
 
     for i in range(len(tokens)):
         t = torch.tensor([tokens[i]]).long().to(model.embedding.weight.device)
-        m = torch.tensor(mask[i]).to(model.embedding.weight.device)
+        m = mask[i].clone().detach().to(model.embedding.weight.device)
         adv = advantages[i]
         old_lp = old_log_probs[i]
 
@@ -99,7 +99,7 @@ def train_grpo():
     sampler = Sampler(model, tokenizer, device=device)
 
     num_iterations = 500
-    group_size = 8
+    group_size = 16
 
     for i in range(num_iterations):
         prompt_text, ref_answer, task_type = get_random_prompt()
@@ -107,8 +107,13 @@ def train_grpo():
 
         # 1. Rollout with exploration noise
         with torch.no_grad():
+            # Alternate between noise and slightly higher temperature for variety
+            use_noise = (i % 2 == 0)
             completions, log_probs, masks = sampler.grpo_rollout(
-                prompt, num_rollouts=group_size, temperature=1.0, noise_std=0.05
+                prompt,
+                num_rollouts=group_size,
+                temperature=1.0 if use_noise else 1.1,
+                noise_std=0.03 if use_noise else 0.0
             )
 
         # 2. Rewards
@@ -118,7 +123,10 @@ def train_grpo():
             rewards.append(r)
 
         rewards = torch.tensor(rewards).to(device)
-        print(f"Iter {i}, Prompt: {prompt}, Mean Reward: {rewards.mean().item():.4f}", flush=True)
+        unique_completions = len(set(completions))
+        print(f"Iter {i}, Prompt: {prompt}, Mean Reward: {rewards.mean().item():.4f}, Unique: {unique_completions}/{group_size}", flush=True)
+        if i % 1 == 0:
+            print(f"Sample Completion: {completions[0]}", flush=True)
 
         # 3. Advantages
         if len(rewards) > 1:

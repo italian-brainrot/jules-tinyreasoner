@@ -18,9 +18,14 @@ def reward_capability_syntax(completion):
     # This is tricky because the result and the second stop are injected by the sampler.
     # We want to check if the model generated [DEFINE]...[CAPABILITY_STOP] or [SYMPY]...[CAPABILITY_STOP].
     pattern = r"\[(DEFINE|SYMPY)\][^\]]+\[CAPABILITY_STOP\]"
+    reward = 0.0
     if re.search(pattern, completion):
-        return 0.2
-    return 0.0
+        reward += 0.5
+
+    if "Error evaluating expression" in completion:
+        reward -= 0.5
+
+    return reward
 
 def reward_correctness(completion, reference_answer, task_type):
     """Reward for matching the reference answer."""
@@ -85,14 +90,21 @@ def reward_grounding(prompt, completion):
         return 0.0
 
     reward = 0.0
+    seen_calls = set()
     for cap_type, payload in calls:
+        # Penalty for duplicate calls
+        call_sig = f"{cap_type}:{payload}"
+        if call_sig in seen_calls:
+            reward -= 0.5
+        seen_calls.add(call_sig)
+
         call_grounded = False
         if cap_type == "SYMPY":
             # Extract numbers from prompt
             prompt_nums = re.findall(r"\d+", prompt)
             for num in prompt_nums:
                 if num in payload:
-                    reward += 0.25
+                    reward += 5.0
                     call_grounded = True
                     break
         elif cap_type == "DEFINE":
@@ -101,14 +113,18 @@ def reward_grounding(prompt, completion):
             prompt_words = [w.lower() for w in prompt_words if len(w) > 3]
             for w in prompt_words:
                 if w in payload.lower():
-                    reward += 0.25
+                    reward += 5.0
                     call_grounded = True
                     break
 
         if not call_grounded:
-            reward -= 1.0 # Strong penalty for each hallucinated call
+            reward -= 10.0 # Strong penalty for each hallucinated call
 
-    return min(max(reward, -2.0), 1.0)
+        # Specific anti-hallucination for 'elephant' mode collapse
+        if "elephant" in payload.lower() and "elephant" not in prompt.lower():
+            reward -= 20.0
+
+    return min(max(reward, -100.0), 20.0)
 
 def reward_correct_capability_type(completion, task_type):
     """Reward for calling the right tool type for the task."""
@@ -121,14 +137,14 @@ def reward_correct_capability_type(completion, task_type):
     for cap_type in matches:
         if task_type == "math":
             if cap_type == "SYMPY":
-                reward += 0.1
+                reward += 0.5
             else:
-                reward -= 0.2
+                reward -= 1.0
         elif task_type == "dict":
             if cap_type == "DEFINE":
-                reward += 0.1
+                reward += 0.5
             else:
-                reward -= 0.2
+                reward -= 1.0
     return reward
 
 def get_total_reward(prompt, completion, reference_answer, task_type):

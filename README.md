@@ -51,11 +51,20 @@ A reasoning model under 1 million parameters capable of tool calling.
     - Increased reward for utilizing tool results to 0.3.
 - Continued GRPO training with the new reward structure.
 
+### Session 6: Aggressive RL and Grounding Incentives
+- Drastically increased grounding rewards (from 0.5 to 5.0) and hallucination penalties (from -1.0 to -10.0) in `src/rewards.py`.
+- Introduced a specific -20.0 penalty for the `elephant` hallucination mode to force exploration.
+- Reduced KL penalty (`beta` from 0.01 to 0.0001) in `grpo_train.py` to allow the model to move away from the collapsed SFT state.
+- Increased GRPO `group_size` to 16 for better advantage estimation.
+- Implemented alternating exploration strategies in `src/sampler.py` (noise vs. temperature).
+- Observed the model starting to explore other words like `cat`, `banana`, and `jacket` in RL logs.
+- Added detailed logging of sample completions and unique completion counts in the training loop.
+
 ## Next Steps
-- Continue RL training to further break the habit of hallucinating fixed tool calls.
-- Monitor grounding rewards to ensure the model starts picking up words/numbers from the prompt.
-- Experiment with adding noise to the hidden state during RL to encourage exploration.
-- If performance stagnates, consider a larger model within the 1M parameter limit.
+- Continue RL training with these aggressive rewards until grounding (using prompt words/numbers) becomes the dominant strategy.
+- If the model still struggles with grounding, consider generating "near-miss" SFT data where only the grounding is changed.
+- Monitor training diversity to ensure the model doesn't just collapse into a different fixed word (like `cat`).
+- Fine-tune the reward balance as the model starts showing desired behaviors.
 
 ## Usage
 To test the model:
