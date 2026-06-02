@@ -1,9 +1,29 @@
 import random
 from src.capabilities import lookup_dictionary, evaluate_math
+import nltk
 
-def generate_math_prompt():
-    a = random.randint(1, 500)
-    b = random.randint(1, 500)
+_word_list = None
+def get_word_list():
+    global _word_list
+    if _word_list is None:
+        try:
+            _word_list = nltk.corpus.words.words()
+        except LookupError:
+            nltk.download('words')
+            _word_list = nltk.corpus.words.words()
+    return _word_list
+
+def generate_math_prompt(level=2):
+    if level == 0:
+        a = random.randint(1, 9)
+        b = random.randint(1, 9)
+    elif level == 1:
+        a = random.randint(1, 99)
+        b = random.randint(1, 99)
+    else:
+        a = random.randint(1, 500)
+        b = random.randint(1, 500)
+
     ops = [("+", "sum of"), ("-", "difference between"), ("*", "product of")]
     op, phrase = random.choice(ops)
 
@@ -13,18 +33,21 @@ def generate_math_prompt():
 
     return prompt, result, "math"
 
-def generate_dict_prompt():
-    # Use NLTK words corpus for more variety
-    import nltk
-    try:
-        word_list = nltk.corpus.words.words()
-    except LookupError:
-        nltk.download('words')
-        word_list = nltk.corpus.words.words()
+def generate_dict_prompt(level=2):
+    word_list = get_word_list()
 
     # Filter for reasonably sized words
-    word_list = [w for w in word_list if 3 < len(w) < 10]
-    word = random.choice(word_list)
+    if level == 0:
+        word_list = [w for w in word_list if 3 <= len(w) <= 4]
+    elif level == 1:
+        word_list = [w for w in word_list if 4 <= len(w) <= 6]
+    else:
+        word_list = [w for w in word_list if 3 < len(w) < 10]
+
+    if not word_list:
+        word_list = ["apple", "dog", "cat", "ball"]
+
+    word = random.choice(word_list).lower()
     definition = lookup_dictionary(word)
 
     prompt = f"What is the definition of {word}?"
@@ -47,12 +70,7 @@ def generate_complex_math_prompt():
     return prompt, result, "math"
 
 def generate_comparison_prompt():
-    import nltk
-    try:
-        word_list = nltk.corpus.words.words()
-    except LookupError:
-        nltk.download('words')
-        word_list = nltk.corpus.words.words()
+    word_list = get_word_list()
 
     word1 = random.choice(word_list).lower()
     word2 = random.choice(word_list).lower()
@@ -69,13 +87,8 @@ def generate_comparison_prompt():
     return prompt, result, "dict"
 
 def generate_synonym_prompt():
-    import nltk
     from nltk.corpus import wordnet
-    try:
-        word_list = nltk.corpus.words.words()
-    except LookupError:
-        nltk.download('words')
-        word_list = nltk.corpus.words.words()
+    word_list = get_word_list()
 
     try:
         wordnet.synsets("test")
@@ -102,13 +115,8 @@ def generate_synonym_prompt():
     return prompt, result, "dict"
 
 def generate_antonym_prompt():
-    import nltk
     from nltk.corpus import wordnet
-    try:
-        word_list = nltk.corpus.words.words()
-    except LookupError:
-        nltk.download('words')
-        word_list = nltk.corpus.words.words()
+    word_list = get_word_list()
 
     try:
         wordnet.synsets("test")
@@ -128,12 +136,31 @@ def generate_antonym_prompt():
 
     return generate_dict_prompt() # Fallback
 
-def get_random_prompt():
+def get_random_prompt(level=2):
     r = random.random()
+
+    # At lower levels, stick to simple math and dict lookups
+    if level == 0:
+        if r < 0.5:
+            return generate_math_prompt(level=0)
+        else:
+            return generate_dict_prompt(level=0)
+
+    if level == 1:
+        if r < 0.4:
+            return generate_math_prompt(level=1)
+        elif r < 0.8:
+            return generate_dict_prompt(level=1)
+        elif r < 0.9:
+            return generate_comparison_prompt() # Simple comparison
+        else:
+            return generate_synonym_prompt()
+
+    # Level 2+: All prompts
     if r < 0.25:
-        return generate_math_prompt()
+        return generate_math_prompt(level=2)
     elif r < 0.5:
-        return generate_dict_prompt()
+        return generate_dict_prompt(level=2)
     elif r < 0.7:
         return generate_complex_math_prompt()
     elif r < 0.85:

@@ -71,9 +71,15 @@ def train_grpo():
     tokenizer = CharTokenizer()
     model = TinyReasonerModel(tokenizer.vocab_size).to(device)
 
+    start_iteration = 0
     if os.path.exists("models/rl_model.pt"):
         model.load_state_dict(torch.load("models/rl_model.pt", map_location=device))
         print("Loaded existing RL model.")
+        # If we load an RL model, assume we have already completed Level 0 and 1
+        # unless it's very early. In a real scenario, we might save the iteration.
+        # For now, let's start at the beginning of Level 2 (iteration 600)
+        # to avoid repeating Level 0/1.
+        start_iteration = 600
     elif os.path.exists("models/sft_model.pt"):
         model.load_state_dict(torch.load("models/sft_model.pt", map_location=device))
         print("Loaded SFT model.")
@@ -98,11 +104,19 @@ def train_grpo():
 
     sampler = Sampler(model, tokenizer, device=device)
 
-    num_iterations = 500
+    num_iterations = 1000
     group_size = 16
 
-    for i in range(num_iterations):
-        prompt_text, ref_answer, task_type = get_random_prompt()
+    for i in range(start_iteration, start_iteration + num_iterations):
+        # Curriculum: Level 0 for first 300 iters, Level 1 for next 300, Level 2 after
+        if i < 300:
+            level = 0
+        elif i < 600:
+            level = 1
+        else:
+            level = 2
+
+        prompt_text, ref_answer, task_type = get_random_prompt(level=level)
         prompt = f"[BOS]{prompt_text}"
 
         # 1. Rollout with exploration noise
@@ -124,7 +138,7 @@ def train_grpo():
 
         rewards = torch.tensor(rewards).to(device)
         unique_completions = len(set(completions))
-        print(f"Iter {i}, Prompt: {prompt}, Mean Reward: {rewards.mean().item():.4f}, Unique: {unique_completions}/{group_size}", flush=True)
+        print(f"Iter {i} (Level {level}), Prompt: {prompt}, Mean Reward: {rewards.mean().item():.4f}, Unique: {unique_completions}/{group_size}", flush=True)
         if i % 1 == 0:
             print(f"Sample Completion: {completions[0]}", flush=True)
 
