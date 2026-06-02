@@ -102,20 +102,24 @@ def reward_grounding(prompt, completion):
         if cap_type == "SYMPY":
             # Extract numbers from prompt
             prompt_nums = re.findall(r"\d+", prompt)
-            for num in prompt_nums:
+            num_matches = 0
+            for num in set(prompt_nums):
                 if num in payload:
                     reward += 5.0
-                    call_grounded = True
-                    break
+                    num_matches += 1
+            if num_matches > 0:
+                call_grounded = True
         elif cap_type == "DEFINE":
             prompt_words = re.findall(r"\w+", prompt)
-            # Skip very short words
-            prompt_words = [w.lower() for w in prompt_words if len(w) > 3]
-            for w in prompt_words:
+            # Skip very short words (keep length 3 for Level 0 curriculum)
+            prompt_words = [w.lower() for w in prompt_words if len(w) >= 3]
+            word_matches = 0
+            for w in set(prompt_words):
                 if w in payload.lower():
                     reward += 5.0
-                    call_grounded = True
-                    break
+                    word_matches += 1
+            if word_matches > 0:
+                call_grounded = True
 
         if not call_grounded:
             reward -= 10.0 # Strong penalty for each hallucinated call

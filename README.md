@@ -60,7 +60,20 @@ A reasoning model under 1 million parameters capable of tool calling.
 - Observed the model starting to explore other words like `cat`, `banana`, and `jacket` in RL logs.
 - Added detailed logging of sample completions and unique completion counts in the training loop.
 
+### Session 7: Curriculum Learning and Dense Rewards
+- Implemented a three-level curriculum strategy in `src/prompts.py`:
+    - Level 0: Single-digit math, 3-4 letter words.
+    - Level 1: Two-digit math, 4-6 letter words, simple comparisons and synonyms.
+    - Level 2: Original complex tasks.
+- Updated `src/rewards.py` for dense grounding rewards:
+    - Rewards are now given for *each* unique number or word matched from the prompt (min length 3).
+- Enhanced `src/grpo_train.py` with curriculum progression and persistence:
+    - Automatically skips to Level 2 if an existing `rl_model.pt` is found to prevent catastrophic forgetting.
+    - Increased total iterations to 1000.
+- Optimized `src/prompts.py` by caching NLTK word lists at the module level.
+
 ## Next Steps
+- Monitor the transition between curriculum levels to ensure the model maintains performance.
 - Continue RL training with these aggressive rewards until grounding (using prompt words/numbers) becomes the dominant strategy.
 - If the model still struggles with grounding, consider generating "near-miss" SFT data where only the grounding is changed.
 - Monitor training diversity to ensure the model doesn't just collapse into a different fixed word (like `cat`).
