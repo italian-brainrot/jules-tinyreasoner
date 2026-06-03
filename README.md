@@ -61,16 +61,19 @@ A reasoning model under 1 million parameters capable of tool calling.
 - Added detailed logging of sample completions and unique completion counts in the training loop.
 
 ### Session 7: Curriculum Learning and Dense Rewards
-- Implemented a three-level curriculum strategy in `src/prompts.py`:
-    - Level 0: Single-digit math, 3-4 letter words.
-    - Level 1: Two-digit math, 4-6 letter words, simple comparisons and synonyms.
-    - Level 2: Original complex tasks.
-- Updated `src/rewards.py` for dense grounding rewards:
-    - Rewards are now given for *each* unique number or word matched from the prompt (min length 3).
-- Enhanced `src/grpo_train.py` with curriculum progression and persistence:
-    - Automatically skips to Level 2 if an existing `rl_model.pt` is found to prevent catastrophic forgetting.
-    - Increased total iterations to 1000.
-- Optimized `src/prompts.py` by caching NLTK word lists at the module level.
+- Implemented a three-level curriculum strategy in `src/prompts.py`.
+- Updated `src/rewards.py` for dense grounding rewards.
+- Enhanced `src/grpo_train.py` with curriculum progression and persistence.
+
+### Session 8: Targeted Grounding and Curriculum Reset
+- Identified persistent mode collapse (e.g., hallucinating `elephant`).
+- Created `src/generate_grounding_data.py` to generate 200 high-quality grounding examples.
+- Modified `src/sft_train.py` to support custom datasets and fine-tuning from existing RL checkpoints.
+- Performed a "nudge" SFT phase on the grounding dataset to re-orient the model towards prompt entities.
+- Reset GRPO curriculum to Level 0 to focus on simple grounding tasks.
+- Ran 300 iterations of GRPO.
+- Observed that while the model moved away from `elephant`, it partially collapsed into a new mode (`jacket`).
+- Verified that tool use syntax and reasoning traces remain intact.
 
 ## Next Steps
 - Monitor the transition between curriculum levels to ensure the model maintains performance.
