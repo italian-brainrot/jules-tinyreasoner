@@ -75,11 +75,8 @@ def train_grpo():
     if os.path.exists("models/rl_model.pt"):
         model.load_state_dict(torch.load("models/rl_model.pt", map_location=device))
         print("Loaded existing RL model.")
-        # If we load an RL model, assume we have already completed Level 0 and 1
-        # unless it's very early. In a real scenario, we might save the iteration.
-        # For now, let's start at the beginning of Level 2 (iteration 600)
-        # to avoid repeating Level 0/1.
-        start_iteration = 600
+        # Re-starting from level 0 to ensure grounding.
+        start_iteration = 0
     elif os.path.exists("models/sft_model.pt"):
         model.load_state_dict(torch.load("models/sft_model.pt", map_location=device))
         print("Loaded SFT model.")
@@ -104,7 +101,7 @@ def train_grpo():
 
     sampler = Sampler(model, tokenizer, device=device)
 
-    num_iterations = 1000
+    num_iterations = 300
     group_size = 16
 
     for i in range(start_iteration, start_iteration + num_iterations):
