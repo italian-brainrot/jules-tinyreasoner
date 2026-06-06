@@ -75,6 +75,17 @@ A reasoning model under 1 million parameters capable of tool calling.
 - Observed that while the model moved away from `elephant`, it partially collapsed into a new mode (`jacket`).
 - Verified that tool use syntax and reasoning traces remain intact.
 
+### Session 9: Tightened Grounding Rewards and Continued RL
+- Identified new mode collapse into `jacket` and `guitar`.
+- Significantly tightened grounding rewards in `src/rewards.py`:
+    - Increased reward for grounded entities to +10.0.
+    - Added heavy penalties (-20.0) for individual hallucinated entities in tool payloads.
+    - Added specific penalties (-20.0) for `jacket` mode collapse.
+- Continued GRPO training for 300 iterations at Level 0.
+- Monitored training logs to ensure the model explores beyond collapsed modes.
+- Synced updated `rl_model.pt` and training logs to Hugging Face bucket.
+- Verified that core architecture and tool-calling mechanics remain stable via integration tests.
+
 ## Next Steps
 - Monitor the transition between curriculum levels to ensure the model maintains performance.
 - Continue RL training with these aggressive rewards until grounding (using prompt words/numbers) becomes the dominant strategy.
