@@ -101,32 +101,44 @@ def reward_grounding(prompt, completion):
         call_grounded = False
         if cap_type == "SYMPY":
             # Extract numbers from prompt
-            prompt_nums = re.findall(r"\d+", prompt)
-            num_matches = 0
-            for num in set(prompt_nums):
-                if num in payload:
-                    reward += 5.0
-                    num_matches += 1
-            if num_matches > 0:
-                call_grounded = True
+            prompt_nums = set(re.findall(r"\d+", prompt))
+            payload_nums = set(re.findall(r"\d+", payload))
+
+            if not payload_nums:
+                reward -= 10.0
+            else:
+                for num in payload_nums:
+                    if num in prompt_nums:
+                        reward += 10.0
+                    else:
+                        reward -= 20.0
+
+                if any(num in prompt_nums for num in payload_nums):
+                    call_grounded = True
+
         elif cap_type == "DEFINE":
-            prompt_words = re.findall(r"\w+", prompt)
-            # Skip very short words (keep length 3 for Level 0 curriculum)
-            prompt_words = [w.lower() for w in prompt_words if len(w) >= 3]
-            word_matches = 0
-            for w in set(prompt_words):
-                if w in payload.lower():
-                    reward += 5.0
-                    word_matches += 1
-            if word_matches > 0:
-                call_grounded = True
+            prompt_words = set([w.lower() for w in re.findall(r"\w+", prompt) if len(w) >= 3])
+            payload_words = set([w.lower() for w in re.findall(r"\w+", payload) if len(w) >= 3])
+
+            if not payload_words:
+                reward -= 10.0
+            else:
+                for w in payload_words:
+                    if w in prompt_words:
+                        reward += 10.0
+                    else:
+                        reward -= 20.0
+
+                if any(w in prompt_words for w in payload_words):
+                    call_grounded = True
 
         if not call_grounded:
             reward -= 10.0 # Strong penalty for each hallucinated call
 
-        # Specific anti-hallucination for 'elephant' mode collapse
-        if "elephant" in payload.lower() and "elephant" not in prompt.lower():
-            reward -= 20.0
+        # Specific anti-hallucination for 'elephant' and 'jacket' mode collapse
+        for mode_word in ["elephant", "jacket"]:
+            if mode_word in payload.lower() and mode_word not in prompt.lower():
+                reward -= 20.0
 
     return min(max(reward, -100.0), 20.0)
 
