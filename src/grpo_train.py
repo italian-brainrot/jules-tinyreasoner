@@ -64,7 +64,7 @@ def compute_grpo_loss(model, ref_model, tokens, old_log_probs, mask, advantages,
 
     return total_loss / len(tokens)
 
-def train_grpo():
+def train_grpo(num_iterations=500, group_size=32):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
@@ -100,9 +100,6 @@ def train_grpo():
     optimizer = SOAP(param_groups, lr=1e-5) # Smaller LR for RL
 
     sampler = Sampler(model, tokenizer, device=device)
-
-    num_iterations = 300
-    group_size = 16
 
     for i in range(start_iteration, start_iteration + num_iterations):
         # Curriculum: Level 0 for first 300 iters, Level 1 for next 300, Level 2 after
@@ -164,4 +161,10 @@ def train_grpo():
     print("RL training complete. Model saved to models/rl_model.pt")
 
 if __name__ == "__main__":
-    train_grpo()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--iterations", type=int, default=500)
+    parser.add_argument("--group_size", type=int, default=32)
+    args = parser.parse_args()
+
+    train_grpo(num_iterations=args.iterations, group_size=args.group_size)

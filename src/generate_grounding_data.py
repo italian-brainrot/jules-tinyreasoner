@@ -59,9 +59,9 @@ def generate_grounding_math_task():
 
 def main():
     data = []
-    for _ in range(100):
+    for _ in range(1000):
         data.append(generate_grounding_dictionary_task())
-    for _ in range(100):
+    for _ in range(1000):
         data.append(generate_grounding_math_task())
 
     random.shuffle(data)
