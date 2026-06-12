@@ -64,7 +64,7 @@ def compute_grpo_loss(model, ref_model, tokens, old_log_probs, mask, advantages,
 
     return total_loss / len(tokens)
 
-def train_grpo(num_iterations=500, group_size=32):
+def train_grpo(num_iterations=500, group_size=32, load_model=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
@@ -72,7 +72,10 @@ def train_grpo(num_iterations=500, group_size=32):
     model = TinyReasonerModel(tokenizer.vocab_size).to(device)
 
     start_iteration = 0
-    if os.path.exists("models/rl_model.pt"):
+    if load_model and os.path.exists(load_model):
+        model.load_state_dict(torch.load(load_model, map_location=device))
+        print(f"Loaded model from {load_model}.")
+    elif os.path.exists("models/rl_model.pt"):
         model.load_state_dict(torch.load("models/rl_model.pt", map_location=device))
         print("Loaded existing RL model.")
         # Re-starting from level 0 to ensure grounding.
@@ -165,6 +168,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--iterations", type=int, default=500)
     parser.add_argument("--group_size", type=int, default=32)
+    parser.add_argument("--load_model", type=str, default=None)
     args = parser.parse_args()
 
-    train_grpo(num_iterations=args.iterations, group_size=args.group_size)
+    train_grpo(num_iterations=args.iterations, group_size=args.group_size, load_model=args.load_model)
