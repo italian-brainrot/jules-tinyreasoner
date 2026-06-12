@@ -86,6 +86,15 @@ A reasoning model under 1 million parameters capable of tool calling.
 - Synced updated `rl_model.pt` and training logs to Hugging Face bucket.
 - Verified that core architecture and tool-calling mechanics remain stable via integration tests.
 
+### Session 10: Grounding Refresh and Evaluation Tools
+- Introduced `src/compare_models.py` to quantitatively track grounding rate and average reward.
+- Enhanced `src/generate_grounding_data.py` with diverse reasoning templates and division operations.
+- Generated an expanded dataset of 5000 grounding-focused examples.
+- Performed a targeted SFT "refresh" on this data (`models/sft_grounding_v2.pt`) to stabilize tool payloads.
+- Resumed GRPO training from the refreshed base, achieving a grounding rate of 0.55 (up from 0.3).
+- Verified that math grounding is strong, while dictionary grounding remains a focus for future sessions.
+- Confirmed that the model remains within the 1M parameter limit (~951k parameters).
+
 ## Next Steps
 - Monitor the transition between curriculum levels to ensure the model maintains performance.
 - Continue RL training with these aggressive rewards until grounding (using prompt words/numbers) becomes the dominant strategy.

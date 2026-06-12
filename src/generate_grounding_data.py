@@ -30,7 +30,12 @@ def generate_grounding_dictionary_task():
         definition = lookup_dictionary(word)
 
     prompt = f"What is the definition of {word}?"
-    reasoning = f"Reasoning: I need to find the definition of {word}. [DEFINE]{word}[CAPABILITY_STOP]{definition}[CAPABILITY_STOP] The word {word} means {definition}."
+    reasoning_templates = [
+        f"Reasoning: I need to find the definition of {word}. [DEFINE]{word}[CAPABILITY_STOP]{definition}[CAPABILITY_STOP] The word {word} means {definition}.",
+        f"Reasoning: Let me look up the definition of '{word}'. [DEFINE]{word}[CAPABILITY_STOP]{definition}[CAPABILITY_STOP] I found that {word} means {definition}.",
+        f"Reasoning: To answer this, I'll check the dictionary for {word}. [DEFINE]{word}[CAPABILITY_STOP]{definition}[CAPABILITY_STOP] It says {word} is {definition}."
+    ]
+    reasoning = random.choice(reasoning_templates)
     answer = f"Answer: {definition}"
 
     return {
@@ -42,14 +47,19 @@ def generate_grounding_math_task():
     # Level 0 style: single digits
     a = random.randint(1, 9)
     b = random.randint(1, 9)
-    ops = [("+", "sum of"), ("-", "difference between"), ("*", "product of")]
+    ops = [("+", "sum of"), ("-", "difference between"), ("*", "product of"), ("/", "ratio of")]
     op, phrase = random.choice(ops)
 
     expression = f"{a} {op} {b}"
     result = evaluate_math(expression)
 
     prompt = f"What is the {phrase} {a} and {b}?"
-    reasoning = f"Reasoning: I need to calculate {expression}. [SYMPY]{expression}[CAPABILITY_STOP]{result}[CAPABILITY_STOP] The result of {expression} is {result}."
+    reasoning_templates = [
+        f"Reasoning: I need to calculate {expression}. [SYMPY]{expression}[CAPABILITY_STOP]{result}[CAPABILITY_STOP] The result of {expression} is {result}.",
+        f"Reasoning: Let's compute {a} {op} {b}. [SYMPY]{expression}[CAPABILITY_STOP]{result}[CAPABILITY_STOP] This gives {result}.",
+        f"Reasoning: I will use sympy to evaluate {expression}. [SYMPY]{expression}[CAPABILITY_STOP]{result}[CAPABILITY_STOP] The answer is {result}."
+    ]
+    reasoning = random.choice(reasoning_templates)
     answer = f"Answer: {result}"
 
     return {
@@ -59,10 +69,17 @@ def generate_grounding_math_task():
 
 def main():
     data = []
-    for _ in range(1000):
+    print("Generating dictionary tasks...")
+    for i in range(2500):
         data.append(generate_grounding_dictionary_task())
-    for _ in range(1000):
+        if (i+1) % 500 == 0:
+            print(f"  Generated {i+1} dictionary tasks")
+
+    print("Generating math tasks...")
+    for i in range(2500):
         data.append(generate_grounding_math_task())
+        if (i+1) % 500 == 0:
+            print(f"  Generated {i+1} math tasks")
 
     random.shuffle(data)
     os.makedirs("data", exist_ok=True)
