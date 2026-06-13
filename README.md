@@ -95,6 +95,14 @@ A reasoning model under 1 million parameters capable of tool calling.
 - Verified that math grounding is strong, while dictionary grounding remains a focus for future sessions.
 - Confirmed that the model remains within the 1M parameter limit (~951k parameters).
 
+### Session 11: Quantitative Comparison and Continued RL
+- Refactored `src/compare_models.py` to support command-line arguments for easier checkpoint evaluation.
+- Evaluated all existing checkpoints (`sft_model.pt`, `rl_model.pt`, `rl_model_grounding.pt`) to establish the strongest baseline.
+- Continued GRPO RL training starting from the best `rl_model.pt` for 200 iterations at Level 0.
+- Achieved a stable grounding rate of 0.42 on Level 0 tasks.
+- Verified that math tool calls are frequently grounded, although dictionary lookups still exhibit word hallucinations in the payload.
+- Confirmed stability of the training loop and maintained model integrity via `src/integration_test.py`.
+
 ## Next Steps
 - Monitor the transition between curriculum levels to ensure the model maintains performance.
 - Continue RL training with these aggressive rewards until grounding (using prompt words/numbers) becomes the dominant strategy.
