@@ -103,6 +103,15 @@ A reasoning model under 1 million parameters capable of tool calling.
 - Verified that math tool calls are frequently grounded, although dictionary lookups still exhibit word hallucinations in the payload.
 - Confirmed stability of the training loop and maintained model integrity via `src/integration_test.py`.
 
+### Session 12: SFT Boosting and Enhanced Grounding Rewards
+- Implemented a "booster" SFT phase using 5000 high-quality grounding examples to reinforce entity copying from prompts.
+- Refined `src/rewards.py` with an additional +10.0 bonus for exact target word matches in dictionary lookups.
+- Performed 2 epochs of SFT from `rl_model.pt` to create `models/sft_grounding_v3.pt`.
+- Resumed GRPO training for 150+ iterations at Level 0.
+- Achieved a significant improvement in grounding rate, reaching 0.53 (up from 0.42).
+- Observed that math grounding is now highly reliable, while dictionary lookups are becoming more targeted.
+- Synced all updated models and code to the Hugging Face bucket.
+
 ## Next Steps
 - Monitor the transition between curriculum levels to ensure the model maintains performance.
 - Continue RL training with these aggressive rewards until grounding (using prompt words/numbers) becomes the dominant strategy.

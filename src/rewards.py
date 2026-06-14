@@ -117,6 +117,10 @@ def reward_grounding(prompt, completion):
                     call_grounded = True
 
         elif cap_type == "DEFINE":
+            # Extract target word from prompt if it follows 'definition of ...'
+            target_match = re.search(r"definition of ([\w-]+)", prompt.lower())
+            target_word = target_match.group(1) if target_match else None
+
             prompt_words = set([w.lower() for w in re.findall(r"\w+", prompt) if len(w) >= 3])
             payload_words = set([w.lower() for w in re.findall(r"\w+", payload) if len(w) >= 3])
 
@@ -126,6 +130,8 @@ def reward_grounding(prompt, completion):
                 for w in payload_words:
                     if w in prompt_words:
                         reward += 10.0
+                        if target_word and w == target_word:
+                            reward += 10.0 # Extra bonus for exact target match
                     else:
                         reward -= 20.0
 
