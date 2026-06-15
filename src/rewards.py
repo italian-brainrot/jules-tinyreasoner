@@ -135,12 +135,27 @@ def reward_grounding(prompt, completion):
         if not call_grounded:
             reward -= 10.0 # Strong penalty for each hallucinated call
 
-        # Specific anti-hallucination for 'elephant' and 'jacket' mode collapse
-        for mode_word in ["elephant", "jacket"]:
+        # Specific anti-hallucination for known mode-collapse words
+        for mode_word in ["elephant", "jacket", "moss", "bat", "sout", "guitar", "cat", "banana", "tomss", "seet"]:
             if mode_word in payload.lower() and mode_word not in prompt.lower():
                 reward -= 20.0
 
-    return min(max(reward, -100.0), 20.0)
+        # Target Grounding Bonus: check if the primary target word/numbers are present
+        if cap_type == "DEFINE":
+            # Extract target word from prompt like "What is the definition of apple?"
+            target_match = re.search(r"definition of ([\w'-]+)", prompt.lower())
+            if target_match:
+                target_word = target_match.group(1)
+                if target_word in payload.lower():
+                    reward += 10.0 # Extra bonus for target word grounding
+
+        elif cap_type == "SYMPY":
+            # Check if all numbers in prompt are in payload
+            prompt_nums = re.findall(r"\d+", prompt)
+            if all(num in payload for num in prompt_nums) and len(prompt_nums) > 0:
+                reward += 10.0 # Extra bonus for full math grounding
+
+    return min(max(reward, -100.0), 40.0)
 
 def reward_correct_capability_type(completion, task_type):
     """Reward for calling the right tool type for the task."""

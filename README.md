@@ -103,6 +103,14 @@ A reasoning model under 1 million parameters capable of tool calling.
 - Verified that math tool calls are frequently grounded, although dictionary lookups still exhibit word hallucinations in the payload.
 - Confirmed stability of the training loop and maintained model integrity via `src/integration_test.py`.
 
+### Session 13: Grounding Bonus and RL Stabilization
+- Refined `src/rewards.py` with a Target Grounding Bonus (+10.0) for matching exact prompt entities in capability calls.
+- Expanded the mode-collapse penalty list to include more hallucinated words ('moss', 'bat', 'sout', 'guitar', 'cat', 'banana', 'tomss', 'seet').
+- Ran 300 iterations of GRPO starting from `models/sft_grounding_v3.pt`.
+- Achieved a stable Level 0 grounding rate of 0.42, with math grounding being significantly stronger than dictionary grounding.
+- Verified that the math reward often reaches +30.0 due to the new grounding bonus.
+- Maintained model size under 1M parameters (~951k).
+
 ## Next Steps
 - Monitor the transition between curriculum levels to ensure the model maintains performance.
 - Continue RL training with these aggressive rewards until grounding (using prompt words/numbers) becomes the dominant strategy.
